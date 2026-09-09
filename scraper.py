@@ -1,8 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
-from datetime import datetime
 import re
+import csv
+from datetime import datetime
 import os
 
 def get_car_count():
@@ -12,7 +12,6 @@ def get_car_count():
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        # Ищем элемент с текстом
         count_elem = soup.find(string=lambda t: t and 'Sõidukit kokku' in t)
         if count_elem:
             parent = count_elem.parent
@@ -20,31 +19,32 @@ def get_car_count():
             numbers = re.findall(r'\d+', text)
             if numbers:
                 return int(numbers[0].replace(' ', ''))
-        # Если не нашли, пробуем поискать по классу или другому паттерну (для отладки)
-        # Например, можно вывести весь текст страницы (но для отладки лучше написать в лог)
-        print("Не удалось найти 'Sõidukit kokku'. Проверьте разметку.")
+        print("⚠️ Не найдено 'Sõidukit kokku' на странице.")
         return None
     except Exception as e:
-        print(f"Ошибка при запросе: {e}")
+        print(f"❌ Ошибка при запросе: {e}")
         return None
 
 def update_history():
     count = get_car_count()
     now = datetime.now()
-    # Всегда создаём запись, даже если count = None
-    new_row = pd.DataFrame({
-        'timestamp': [now.strftime('%Y-%m-%d %H:%M:%S')],
-        'date': [now.strftime('%Y-%m-%d')],
-        'car_count': [count if count is not None else 'Ошибка']
-    })
+    timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+    date_only = now.strftime('%Y-%m-%d')
+    # Записываем число или 'Ошибка'
+    count_str = str(count) if count is not None else 'Ошибка'
+    
     filename = 'car_count_history.csv'
-    if os.path.exists(filename):
-        df = pd.read_csv(filename)
-        df = pd.concat([df, new_row], ignore_index=True)
-    else:
-        df = new_row
-    df.to_csv(filename, index=False, encoding='utf-8')
-    print(f"✅ Данные сохранены: {count if count is not None else 'Не удалось получить'} на {now}")
+    file_exists = os.path.isfile(filename)
+    
+    # Открываем файл для добавления (создаём, если нет)
+    with open(filename, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        # Если файл новый – пишем заголовок
+        if not file_exists:
+            writer.writerow(['timestamp', 'date', 'car_count'])
+        writer.writerow([timestamp, date_only, count_str])
+    
+    print(f"✅ Данные сохранены: {count_str} на {timestamp}")
 
 if __name__ == "__main__":
     update_history()
