@@ -12,17 +12,34 @@ def get_car_count():
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        count_elem = soup.find(string=lambda t: t and 'Sõidukit kokku' in t)
-        if count_elem:
-            parent = count_elem.parent
-            text = parent.get_text(strip=True) if parent else count_elem
-            numbers = re.findall(r'\d+', text)
-            if numbers:
-                return int(numbers[0].replace(' ', ''))
-        print("⚠️ Не найдено 'Sõidukit kokku' на странице.")
+        
+        # Получаем весь текст страницы
+        page_text = soup.get_text()
+        # Ищем число, за которым следует слово sõidukit или autot или kokku
+        # Например: "15 724 sõidukit" или "15 724 autot" или "sõidukit 15 724"
+        patterns = [
+            r'(\d{1,3}(?:\s?\d{3})*)\s*sõidukit',  # число, пробел, sõidukit
+            r'(\d{1,3}(?:\s?\d{3})*)\s*autot',      # число, пробел, autot
+            r'sõidukit\s*(\d{1,3}(?:\s?\d{3})*)',   # sõidukit, пробел, число
+            r'kokku\s*(\d{1,3}(?:\s?\d{3})*)',      # kokku, пробел, число
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, page_text, re.IGNORECASE)
+            if match:
+                num_str = match.group(1).replace(' ', '')
+                if num_str.isdigit():
+                    return int(num_str)
+        # Если не нашли, пробуем найти все числа и взять самое большое (запасной вариант)
+        all_numbers = re.findall(r'(\d{1,3}(?:\s?\d{3})*)', page_text)
+        numbers = [int(n.replace(' ', '')) for n in all_numbers if n.replace(' ', '').isdigit()]
+        if numbers:
+            # Берём самое большое, если оно больше 1000 (отсекаем мелкие числа)
+            max_num = max(numbers)
+            if max_num > 1000:
+                return max_num
         return None
     except Exception as e:
-        print(f"❌ Ошибка при запросе: {e}")
+        print(f"❌ Ошибка: {e}")
         return None
 
 def update_history():
@@ -30,21 +47,18 @@ def update_history():
     now = datetime.now()
     timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
     date_only = now.strftime('%Y-%m-%d')
-    # Записываем число или 'Ошибка'
     count_str = str(count) if count is not None else 'Ошибка'
     
     filename = 'car_count_history.csv'
     file_exists = os.path.isfile(filename)
     
-    # Открываем файл для добавления (создаём, если нет)
     with open(filename, mode='a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        # Если файл новый – пишем заголовок
         if not file_exists:
             writer.writerow(['timestamp', 'date', 'car_count'])
         writer.writerow([timestamp, date_only, count_str])
     
-    print(f"✅ Данные сохранены: {count_str} на {timestamp}")
+    print(f"✅ Сохранено: {count_str} на {timestamp}")
 
 if __name__ == "__main__":
     update_history()
