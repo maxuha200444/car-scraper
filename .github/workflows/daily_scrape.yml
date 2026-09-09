@@ -9,13 +9,13 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # <-- Решение для ошибки 128
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5  # <-- Обновлено с v4 на v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6  # <-- Обновлено с v5 на v6
         with:
           python-version: '3.10'
 
