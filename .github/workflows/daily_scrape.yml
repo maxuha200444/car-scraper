@@ -27,11 +27,12 @@ jobs:
 
       - name: Commit and push results
         run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           if [ -f car_count_history.csv ]; then
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
             git add car_count_history.csv
             git commit -m "Обновление данных за $(date +'%Y-%m-%d')" || echo "Нет изменений"
+            git pull --rebase origin main
             git push
           else
             echo "Файл ещё не создан, пропускаем коммит."
