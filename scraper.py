@@ -12,6 +12,7 @@ def get_car_count():
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
+        # Ищем элемент с текстом
         count_elem = soup.find(string=lambda t: t and 'Sõidukit kokku' in t)
         if count_elem:
             parent = count_elem.parent
@@ -19,21 +20,22 @@ def get_car_count():
             numbers = re.findall(r'\d+', text)
             if numbers:
                 return int(numbers[0].replace(' ', ''))
+        # Если не нашли, пробуем поискать по классу или другому паттерну (для отладки)
+        # Например, можно вывести весь текст страницы (но для отладки лучше написать в лог)
+        print("Не удалось найти 'Sõidukit kokku'. Проверьте разметку.")
         return None
     except Exception as e:
-        print(f"Ошибка: {e}")
+        print(f"Ошибка при запросе: {e}")
         return None
 
 def update_history():
     count = get_car_count()
-    if count is None:
-        print("Не удалось получить число. Пропускаем.")
-        return
     now = datetime.now()
+    # Всегда создаём запись, даже если count = None
     new_row = pd.DataFrame({
         'timestamp': [now.strftime('%Y-%m-%d %H:%M:%S')],
         'date': [now.strftime('%Y-%m-%d')],
-        'car_count': [count]
+        'car_count': [count if count is not None else 'Ошибка']
     })
     filename = 'car_count_history.csv'
     if os.path.exists(filename):
@@ -42,7 +44,7 @@ def update_history():
     else:
         df = new_row
     df.to_csv(filename, index=False, encoding='utf-8')
-    print(f"✅ Сохранено: {count} авто на {now}")
+    print(f"✅ Данные сохранены: {count if count is not None else 'Не удалось получить'} на {now}")
 
 if __name__ == "__main__":
     update_history()
